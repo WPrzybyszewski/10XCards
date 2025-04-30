@@ -1,0 +1,57 @@
+<conversation_summary>
+<decisions>
+1. Fiszka może należeć tylko do jednej kategorii (relacja one-to-many `categories` -> `flashcards`).
+2. Fiszka może istnieć bez przypisanej kategorii (`flashcards.category_id` może być `NULL`).
+3. Przechowywanie oryginalnego tekstu źródłowego dla fiszek generowanych przez AI nie jest wymagane dla MVP.
+4. Maksymalna długość pola `question` to 200 znaków, a pola `answer` to 500 znaków.
+5. Usunięcie kategorii powinno spowodować ustawienie `category_id` na `NULL` w powiązanych fiszkach (`ON DELETE SET NULL`).
+6. Funkcjonalność wyszukiwania w MVP wymaga jedynie prostej obsługi za pomocą operatora `LIKE`.
+7. Nie ma potrzeby tworzenia dodatkowej tabeli `profiles` dla MVP; dane użytkownika będą zarządzane przez `auth.users` z Supabase.
+8. Należy przechowywać informację o źródle utworzenia fiszki (ręcznie vs. AI).
+9. Maksymalna długość nazwy kategorii (`categories.name`) to 100 znaków.
+10. Do przechowywania źródła fiszki zostanie użyta nowa kolumna (`source`) typu `ENUM` ('manual', 'ai').
+</decisions>
+
+<matched_recommendations>
+1. Użycie `UUID` jako kluczy głównych dla tabel `flashcards` i `categories` (np. `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`).
+2. Dodanie kolumny `user_id` (UUID) w tabelach `flashcards` i `categories` jako klucza obcego do `auth.users(id)` w celu powiązania danych z użytkownikiem.
+3. Implementacja polityk bezpieczeństwa na poziomie wierszy (RLS) dla `flashcards` i `categories`, ograniczających dostęp do danych na podstawie `auth.uid() = user_id`.
+4. Utworzenie indeksów na kolumnach `user_id` w obu tabelach dla optymalizacji zapytań filtrujących dane użytkownika.
+5. Dodanie kolumny `category_id` (UUID) do `flashcards`, która jest `NULLABLE` i ma klucz obcy do `categories(id)` z akcją `ON DELETE SET NULL`.
+6. Dodanie indeksu na kolumnie `category_id` w tabeli `flashcards` w celu przyspieszenia filtrowania po kategoriach.
+7. Zdefiniowanie kolumn `question` jako `VARCHAR(200)`, `answer` jako `VARCHAR(500)` w `flashcards` oraz `name` jako `VARCHAR(100)` w `categories`, wszystkie z ograniczeniem `NOT NULL`.
+8. Utworzenie typu `ENUM flashcard_source AS ENUM ('manual', 'ai');` i dodanie kolumny `source` tego typu (`NOT NULL`) do tabeli `flashcards`.
+9. Dodanie indeksów B-tree na kolumnach `question` i `answer` w `flashcards` w celu wsparcia wyszukiwania `LIKE`. Rozważenie użycia `varchar_pattern_ops` dla optymalizacji zapytań `LIKE 'prefix%'`.
+10. Dodanie kolumn `created_at` i `updated_at` typu `TIMESTAMPTZ` do `flashcards` i `categories`, z `DEFAULT NOW()` dla `created_at` i triggerem aktualizującym `updated_at`.
+11. Potwierdzenie, że partycjonowanie tabel nie jest konieczne dla MVP.
+</matched_recommendations>
+
+<database_planning_summary>
+Na podstawie analizy wymagań produktu i dyskusji, zaplanowano schemat bazy danych PostgreSQL dla MVP aplikacji do tworzenia fiszek.
+
+**Główne wymagania dotyczące schematu bazy danych:**
+Schemat będzie obejmował tabele do przechowywania informacji o użytkownikach (za pośrednictwem Supabase Auth), kategoriach fiszek oraz samych fiszkach. Konieczne jest śledzenie właściciela każdej kategorii i fiszki, a także źródła pochodzenia fiszki (ręczne wprowadzenie lub generacja AI). Baza danych musi wspierać podstawowe wyszukiwanie tekstowe w treści fiszek.
+
+**Kluczowe encje i ich relacje:**
+1.  **`users`** (dostarczane przez `auth.users` Supabase): Encja centralna, reprezentująca użytkowników aplikacji.
+2.  **`categories`**: Reprezentuje kategorie tworzone przez użytkowników.
+    *   Relacja: Wiele kategorii może należeć do jednego użytkownika (many-to-one z `users`).
+    *   Atrybuty: `id` (PK, UUID), `user_id` (FK do `auth.users`, UUID), `name` (VARCHAR(100), NOT NULL), `created_at` (TIMESTAMPTZ), `updated_at` (TIMESTAMPTZ).
+3.  **`flashcards`**: Reprezentuje pojedynczą fiszkę (pytanie-odpowiedź).
+    *   Relacje:
+        *   Wiele fiszek może należeć do jednego użytkownika (many-to-one z `users`).
+        *   Wiele fiszek może należeć do jednej kategorii (many-to-one z `categories`), ale przypisanie do kategorii jest opcjonalne (`category_id` jest nullable).
+    *   Atrybuty: `id` (PK, UUID), `user_id` (FK do `auth.users`, UUID), `category_id` (FK do `categories`, UUID, NULLABLE, ON DELETE SET NULL), `question` (VARCHAR(200), NOT NULL), `answer` (VARCHAR(500), NOT NULL), `source` (ENUM('manual', 'ai'), NOT NULL), `created_at` (TIMESTAMPTZ), `updated_at` (TIMESTAMPTZ).
+
+**Ważne kwestie dotyczące bezpieczeństwa i skalowalności:**
+*   **Bezpieczeństwo:** Dostęp do danych w tabelach `categories` i `flashcards` będzie ściśle kontrolowany za pomocą polityk RLS opartych na `user_id`, zapewniając, że użytkownicy mają dostęp tylko do własnych danych.
+*   **Skalowalność i Wydajność:** Dla MVP nie przewiduje się potrzeby partycjonowania tabel. Wydajność zapytań zostanie zoptymalizowana poprzez zastosowanie indeksów na kluczowych kolumnach: `user_id`, `category_id` oraz kolumnach tekstowych `question` i `answer` (dla wsparcia wyszukiwania `LIKE`). Użycie `UUID` jako kluczy głównych jest zgodne z dobrymi praktykami w Supabase.
+
+**Integralność danych:**
+Ograniczenia kluczy obcych (`FOREIGN KEY`) zostaną zastosowane w celu zapewnienia spójności relacji między tabelami. Akcja `ON DELETE SET NULL` dla relacji `flashcards` -> `categories` zapewni, że usunięcie kategorii nie spowoduje utraty fiszek, a jedynie usunie ich powiązanie z daną kategorią. Ograniczenia `NOT NULL` zostaną zastosowane do kluczowych pól tekstowych.
+</database_planning_summary>
+
+<unresolved_issues>
+[Na podstawie przeprowadzonej dyskusji nie zidentyfikowano żadnych nierozwiązanych kwestii wymagających dalszych wyjaśnień na tym etapie planowania schematu bazy danych dla MVP.]
+</unresolved_issues>
+</conversation_summary>
