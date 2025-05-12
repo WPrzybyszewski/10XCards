@@ -3,12 +3,15 @@
 ## 1. Typy niestandardowe
 
 ### `flashcard_source`
+
 Typ wyliczeniowy do określania źródła pochodzenia fiszki.
 
 ```sql
 CREATE TYPE public.flashcard_source AS ENUM ('manual', 'ai');
 ```
+
 ### `generation_status`
+
 Typ wyliczeniowy określający status procesu generowania fiszek przez AI.
 
 ```sql
@@ -18,6 +21,7 @@ CREATE TYPE public.generation_status AS ENUM ('pending', 'processing', 'complete
 ## 2. Tabele
 
 ### `public.categories`
+
 Przechowuje kategorie tworzone przez użytkowników.
 
 ```sql
@@ -39,6 +43,7 @@ COMMENT ON COLUMN public.categories.updated_at IS 'Timestamp of when the categor
 ```
 
 ### `public.flashcards`
+
 Przechowuje fiszki (pytanie-odpowiedź) tworzone przez użytkowników.
 
 ```sql
@@ -46,6 +51,7 @@ CREATE TABLE public.flashcards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+    generation_id UUID REFERENCES public.generations(id) ON DELETE SET NULL,
     question VARCHAR(200) NOT NULL,
     answer VARCHAR(500) NOT NULL,
     source public.flashcard_source NOT NULL,
@@ -58,6 +64,7 @@ COMMENT ON TABLE public.flashcards IS 'Stores the flashcards created by users.';
 COMMENT ON COLUMN public.flashcards.id IS 'Primary key for the flashcard.';
 COMMENT ON COLUMN public.flashcards.user_id IS 'Foreign key referencing the user who owns the flashcard.';
 COMMENT ON COLUMN public.flashcards.category_id IS 'Optional foreign key referencing the category this flashcard belongs to. Set to NULL if the category is deleted.';
+COMMENT ON COLUMN public.flashcards.generation_id IS 'Optional foreign key referencing the AI generation task that created this flashcard. NULL for manually created flashcards. Set to NULL if the generation is deleted.';
 COMMENT ON COLUMN public.flashcards.question IS 'The question part of the flashcard (max 200 characters).';
 COMMENT ON COLUMN public.flashcards.answer IS 'The answer part of the flashcard (max 500 characters).';
 COMMENT ON COLUMN public.flashcards.source IS 'Indicates whether the flashcard was created manually or by AI.';
@@ -66,6 +73,7 @@ COMMENT ON COLUMN public.flashcards.updated_at IS 'Timestamp of when the flashca
 ```
 
 ### `public.generations`
+
 Przechowuje informacje o zadaniach generowania fiszek przez AI.
 
 ```sql
@@ -94,6 +102,7 @@ COMMENT ON COLUMN public.generations.updated_at IS 'Timestamp of when the genera
 ```
 
 ### `public.generation_error_logs`
+
 Przechowuje logi błędów napotkanych podczas generowania fiszek przez AI.
 
 ```sql
@@ -117,11 +126,12 @@ COMMENT ON COLUMN public.generation_error_logs.logged_at IS 'Timestamp of when t
 
 ## 3. Relacje
 
-*   **`categories` do `auth.users`**: Wiele-do-jednego (`categories.user_id` -> `auth.users.id`). Każda kategoria należy do jednego użytkownika. Usunięcie użytkownika powoduje usunięcie jego kategorii (`ON DELETE CASCADE`).
-*   **`flashcards` do `auth.users`**: Wiele-do-jednego (`flashcards.user_id` -> `auth.users.id`). Każda fiszka należy do jednego użytkownika. Usunięcie użytkownika powoduje usunięcie jego fiszek (`ON DELETE CASCADE`).
-*   **`flashcards` do `categories`**: Wiele-do-jednego (`flashcards.category_id` -> `categories.id`). Fiszka może (ale nie musi) należeć do jednej kategorii. Przypisanie jest opcjonalne (`NULLABLE`). Usunięcie kategorii powoduje usunięcie powiązania (`ON DELETE SET NULL`), ale nie samej fiszki.
-*   **`generations` do `auth.users`**: Wiele-do-jednego (`generations.user_id` -> `auth.users.id`). Każde zadanie generowania należy do jednego użytkownika. Usunięcie użytkownika powoduje usunięcie jego zadań generowania (`ON DELETE CASCADE`).
-*   **`generation_error_logs` do `generations`**: Wiele-do-jednego (`generation_error_logs.generation_id` -> `generations.id`). Każdy log błędu jest powiązany z jednym zadaniem generowania. Usunięcie zadania generowania powoduje usunięcie powiązanych logów błędów (`ON DELETE CASCADE`).
+- **`categories` do `auth.users`**: Wiele-do-jednego (`categories.user_id` -> `auth.users.id`). Każda kategoria należy do jednego użytkownika. Usunięcie użytkownika powoduje usunięcie jego kategorii (`ON DELETE CASCADE`).
+- **`flashcards` do `auth.users`**: Wiele-do-jednego (`flashcards.user_id` -> `auth.users.id`). Każda fiszka należy do jednego użytkownika. Usunięcie użytkownika powoduje usunięcie jego fiszek (`ON DELETE CASCADE`).
+- **`flashcards` do `categories`**: Wiele-do-jednego (`flashcards.category_id` -> `categories.id`). Fiszka może (ale nie musi) należeć do jednej kategorii. Przypisanie jest opcjonalne (`NULLABLE`). Usunięcie kategorii powoduje usunięcie powiązania (`ON DELETE SET NULL`), ale nie samej fiszki.
+- **`flashcards` do `generations`**: Wiele-do-jednego (`flashcards.generation_id` -> `generations.id`). Fiszka może (ale nie musi) być wygenerowana przez AI. Przypisanie jest opcjonalne (`NULLABLE`) - ręcznie tworzone fiszki mają `generation_id = NULL`. Usunięcie zadania generowania powoduje usunięcie powiązania (`ON DELETE SET NULL`), ale nie samych fiszek.
+- **`generations` do `auth.users`**: Wiele-do-jednego (`generations.user_id` -> `auth.users.id`). Każde zadanie generowania należy do jednego użytkownika. Usunięcie użytkownika powoduje usunięcie jego zadań generowania (`ON DELETE CASCADE`).
+- **`generation_error_logs` do `generations`**: Wiele-do-jednego (`generation_error_logs.generation_id` -> `generations.id`). Każdy log błędu jest powiązany z jednym zadaniem generowania. Usunięcie zadania generowania powoduje usunięcie powiązanych logów błędów (`ON DELETE CASCADE`).
 
 ## 4. Indeksy
 
@@ -138,6 +148,9 @@ COMMENT ON INDEX idx_flashcards_user_id IS 'Index on user_id for faster filterin
 
 CREATE INDEX idx_flashcards_category_id ON public.flashcards(category_id);
 COMMENT ON INDEX idx_flashcards_category_id IS 'Index on category_id for faster filtering of flashcards by category.';
+
+CREATE INDEX idx_flashcards_generation_id ON public.flashcards(generation_id);
+COMMENT ON INDEX idx_flashcards_generation_id IS 'Index on generation_id for faster filtering of flashcards by their AI generation source.';
 
 -- Indeksy wspierające wyszukiwanie LIKE (rozważenie varchar_pattern_ops dla zapytań 'prefix%')
 CREATE INDEX idx_flashcards_question ON public.flashcards(question); -- Standardowy B-tree dla ogólnego LIKE '%term%'
@@ -223,6 +236,7 @@ COMMENT ON POLICY "Allow authenticated users to view error logs for their own ge
 ## 6. Funkcje pomocnicze i Triggery
 
 ### Trigger do aktualizacji `updated_at`
+
 Automatycznie aktualizuje kolumnę `updated_at` przy każdej zmianie wiersza.
 
 ```sql
@@ -264,9 +278,9 @@ COMMENT ON TRIGGER on_generations_update ON public.generations IS 'Trigger to au
 
 ## 7. Dodatkowe uwagi
 
-*   **Użytkownicy**: Zarządzanie użytkownikami (rejestracja, logowanie, reset hasła) jest obsługiwane przez mechanizmy Supabase Auth (`auth.users`, `auth.identities` itp.). Nie ma potrzeby tworzenia dodatkowej tabeli `profiles` w ramach MVP.
-*   **Generowanie AI**: Dodano tabele `generations` i `generation_error_logs` do śledzenia procesu generowania fiszek przez AI, w tym tekstu źródłowego, użytego modelu, statusu, wyników oraz ewentualnych błędów. Kolumna `generated_flashcards` w tabeli `generations` przechowuje surowe dane JSON z AI do dalszego przetworzenia/akceptacji przez użytkownika.
-*   **Skalowalność**: Dla MVP schemat jest wystarczający. Partycjonowanie tabel nie jest obecnie wymagane, ale może być rozważone w przyszłości przy znacznym wzroście ilości danych.
-*   **Wyszukiwanie**: Aktualne indeksy wspierają proste wyszukiwanie `LIKE`. W przyszłości, dla bardziej zaawansowanych potrzeb wyszukiwania, można rozważyć implementację PostgreSQL Full-Text Search z indeksami GIN/GiST.
-*   **UUID vs Serial**: Użycie `UUID` jako kluczy głównych jest zgodne z powszechnymi praktykami w Supabase i ułatwia generowanie unikalnych identyfikatorów po stronie klienta lub w rozproszonym środowisku.
-*   **CASCADE vs SET NULL**: Wybrano `ON DELETE SET NULL` dla `flashcards.category_id`, aby usunięcie kategorii nie powodowało utraty samych fiszek. Wybrano `ON DELETE CASCADE` dla `user_id` (w `categories`, `flashcards`, `generations`) oraz `generation_id` (w `generation_error_logs`), aby usunięcie konta użytkownika lub zadania generowania usuwało wszystkie powiązane z nimi dane, zgodnie z oczekiwaniami dotyczącymi zarządzania danymi. 
+- **Użytkownicy**: Zarządzanie użytkownikami (rejestracja, logowanie, reset hasła) jest obsługiwane przez mechanizmy Supabase Auth (`auth.users`, `auth.identities` itp.). Nie ma potrzeby tworzenia dodatkowej tabeli `profiles` w ramach MVP.
+- **Generowanie AI**: Dodano tabele `generations` i `generation_error_logs` do śledzenia procesu generowania fiszek przez AI, w tym tekstu źródłowego, użytego modelu, statusu, wyników oraz ewentualnych błędów. Kolumna `generated_flashcards` w tabeli `generations` przechowuje surowe dane JSON z AI do dalszego przetworzenia/akceptacji przez użytkownika. Utworzone i zaakceptowane fiszki są zapisywane w tabeli `flashcards` z odpowiednim `generation_id` wskazującym na ich źródło.
+- **Skalowalność**: Dla MVP schemat jest wystarczający. Partycjonowanie tabel nie jest obecnie wymagane, ale może być rozważone w przyszłości przy znacznym wzroście ilości danych.
+- **Wyszukiwanie**: Aktualne indeksy wspierają proste wyszukiwanie `LIKE`. W przyszłości, dla bardziej zaawansowanych potrzeb wyszukiwania, można rozważyć implementację PostgreSQL Full-Text Search z indeksami GIN/GiST.
+- **UUID vs Serial**: Użycie `UUID` jako kluczy głównych jest zgodne z powszechnymi praktykami w Supabase i ułatwia generowanie unikalnych identyfikatorów po stronie klienta lub w rozproszonym środowisku.
+- **CASCADE vs SET NULL**: Wybrano `ON DELETE SET NULL` dla `flashcards.category_id` i `flashcards.generation_id`, aby usunięcie kategorii lub zadania generowania nie powodowało utraty samych fiszek. Wybrano `ON DELETE CASCADE` dla `user_id` (w `categories`, `flashcards`, `generations`) oraz `generation_id` (w `generation_error_logs`), aby usunięcie konta użytkownika lub zadania generowania usuwało wszystkie powiązane z nimi dane, zgodnie z oczekiwaniami dotyczącymi zarządzania danymi.

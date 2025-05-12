@@ -60,28 +60,6 @@ comment on column public.categories.name is 'name of the category (max 100 chara
 comment on column public.categories.created_at is 'timestamp of when the category was created.';
 comment on column public.categories.updated_at is 'timestamp of when the category was last updated.';
 
--- table: flashcards
-create table public.flashcards (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid not null references auth.users(id) on delete cascade,
-    category_id uuid references public.categories(id) on delete set null,
-    question varchar(200) not null,
-    answer varchar(500) not null,
-    source public.flashcard_source not null,
-    created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
-);
-
-comment on table public.flashcards is 'stores the flashcards created by users.';
-comment on column public.flashcards.id is 'primary key for the flashcard.';
-comment on column public.flashcards.user_id is 'foreign key referencing the user who owns the flashcard.';
-comment on column public.flashcards.category_id is 'optional foreign key referencing the category this flashcard belongs to. set to null if the category is deleted.';
-comment on column public.flashcards.question is 'the question part of the flashcard (max 200 characters).';
-comment on column public.flashcards.answer is 'the answer part of the flashcard (max 500 characters).';
-comment on column public.flashcards.source is 'indicates whether the flashcard was created manually or by ai.';
-comment on column public.flashcards.created_at is 'timestamp of when the flashcard was created.';
-comment on column public.flashcards.updated_at is 'timestamp of when the flashcard was last updated.';
-
 -- table: generations
 create table public.generations (
     id uuid primary key default gen_random_uuid(),
@@ -103,6 +81,30 @@ comment on column public.generations.status is 'current status of the generation
 comment on column public.generations.generated_flashcards is 'raw json output from the ai containing suggested flashcards, before user review/acceptance.';
 comment on column public.generations.created_at is 'timestamp of when the generation task was created.';
 comment on column public.generations.updated_at is 'timestamp of when the generation task was last updated.';
+
+-- table: flashcards
+create table public.flashcards (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    category_id uuid references public.categories(id) on delete set null,
+    generation_id uuid references public.generations(id) on delete set null,
+    question varchar(200) not null,
+    answer varchar(500) not null,
+    source public.flashcard_source not null,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+comment on table public.flashcards is 'stores the flashcards created by users.';
+comment on column public.flashcards.id is 'primary key for the flashcard.';
+comment on column public.flashcards.user_id is 'foreign key referencing the user who owns the flashcard.';
+comment on column public.flashcards.category_id is 'optional foreign key referencing the category this flashcard belongs to. set to null if the category is deleted.';
+comment on column public.flashcards.generation_id is 'optional foreign key referencing the ai generation task that created this flashcard. null for manually created flashcards. set to null if the generation is deleted.';
+comment on column public.flashcards.question is 'the question part of the flashcard (max 200 characters).';
+comment on column public.flashcards.answer is 'the answer part of the flashcard (max 500 characters).';
+comment on column public.flashcards.source is 'indicates whether the flashcard was created manually or by ai.';
+comment on column public.flashcards.created_at is 'timestamp of when the flashcard was created.';
+comment on column public.flashcards.updated_at is 'timestamp of when the flashcard was last updated.';
 
 -- table: generation_error_logs
 create table public.generation_error_logs (
@@ -130,11 +132,11 @@ create index idx_categories_user_id on public.categories(user_id);
 -- flashcards
 create index idx_flashcards_user_id on public.flashcards(user_id);
 create index idx_flashcards_category_id on public.flashcards(category_id);
+create index idx_flashcards_generation_id on public.flashcards(generation_id);
 create index idx_flashcards_question on public.flashcards(question);
 create index idx_flashcards_answer on public.flashcards(answer);
 
 -- generations
-a
 create index idx_generations_user_id on public.generations(user_id);
 create index idx_generations_status on public.generations(status);
 
@@ -237,7 +239,7 @@ create policy authenticated_insert_own_generations
   for insert
   with check (auth.uid() = user_id);
 
-create policyauthenticated_update_own_generations
+create policy authenticated_update_own_generations
   on public.generations
   for update
   using (auth.uid() = user_id)
