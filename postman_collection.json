@@ -1,0 +1,188 @@
+{
+  "info": {
+    "name": "Fiszki AI API (dev)",
+    "_postman_id": "22222222-2222-2222-2222-222222222222",
+    "description": "Kolekcja endpointów Fiszki AI (wersja dev, bez realnego auth – userId zahardkodowany po stronie backendu tam, gdzie potrzebny).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Categories - List (GET /api/v1/categories)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/categories?limit=100&offset=0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "categories"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "100",
+              "description": "Opcjonalne, 1–500 (domyślnie 100)."
+            },
+            {
+              "key": "offset",
+              "value": "0",
+              "description": "Opcjonalne, >= 0 (domyślnie 0)."
+            }
+          ]
+        },
+        "description": "Zwraca listę kategorii aktualnego użytkownika. W dev brak nagłówka Authorization – userId jest zahardkodowany po stronie backendu."
+      },
+      "response": []
+    },
+    {
+      "name": "Categories - Create (POST /api/v1/categories)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "name": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Biology\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/categories",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "categories"
+          ]
+        },
+        "description": "Tworzy nową kategorię. `name` po trim() musi mieć długość 1–100 znaków i być unikalna dla użytkownika."
+      },
+      "response": []
+    },
+    {
+      "name": "Flashcards - List (GET /api/v1/flashcards)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/flashcards?limit=50&offset=0&order=created_desc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "flashcards"
+          ],
+          "query": [
+            {
+              "key": "category_id",
+              "value": "",
+              "description": "Opcjonalny filtr po kategorii (UUID). Pozostaw pusty, aby pobrać wszystkie fiszki."
+            },
+            {
+              "key": "limit",
+              "value": "50",
+              "description": "Opcjonalne, 1–200 (domyślnie 50)."
+            },
+            {
+              "key": "offset",
+              "value": "0",
+              "description": "Opcjonalne, >= 0 (domyślnie 0)."
+            },
+            {
+              "key": "order",
+              "value": "created_desc",
+              "description": "Opcjonalne: created_desc (domyślne) lub created_asc."
+            }
+          ]
+        },
+        "description": "Zwraca listę fiszek aktualnego użytkownika z paginacją i opcjonalnym filtrem po kategorii. W dev rely na konfiguracji Supabase/RLS bez realnego tokena."
+      },
+      "response": []
+    },
+    {
+      "name": "Flashcards - Generate (POST /api/v1/flashcards/generate)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "name": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": \"TU WSTAW SWÓJ TEKST (po trim 1000–10000 znaków). Na potrzeby dev możesz wkleić dłuższy lorem ipsum lub własny materiał do nauki.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/flashcards/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "flashcards",
+            "generate"
+          ]
+        },
+        "description": "Generuje propozycje fiszek z tekstu wejściowego. Wymaga `input` 1000–10000 znaków po trim(). W dev userId jest zahardkodowany."
+      },
+      "response": []
+    },
+    {
+      "name": "Flashcards - Accept proposal (POST /api/v1/flashcards/accept)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "name": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"generation_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"proposal_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"category_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"front\": \"Przykładowy przód fiszki\",\n  \"back\": \"Przykładowy tył fiszki, może zawierać dłuższe wyjaśnienie.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/flashcards/accept",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "flashcards",
+            "accept"
+          ]
+        },
+        "description": "Akceptuje wskazaną propozycję fiszki i tworzy rekord w `flashcards` (source = \"ai\"). Użyj wartości `generation_id` i `proposal_id` zwróconych z generate oraz istniejącego `category_id`."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
+
+

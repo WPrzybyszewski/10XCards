@@ -1,5 +1,6 @@
 import type { APIContext } from "astro";
 
+import { createErrorResponse, createJsonResponse } from "@/lib/http";
 import { generateFlashcardsCommandSchema } from "@/lib/validation/flashcards";
 import { AiProviderError, generateFlashcardsFromInput } from "@/lib/services/flashcardGeneratorService";
 
@@ -14,7 +15,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const supabase = locals.supabase;
 
   if (!supabase) {
-    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
+    return createErrorResponse(500, "Internal Server Error", "Supabase client not available.");
   }
 
   // 1. Użytkownik „na sztywno” na potrzeby dev (bez pełnej autoryzacji).
@@ -27,19 +28,18 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     jsonBody = await request.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
+    return createErrorResponse(400, "Bad Request", "Invalid JSON body.");
   }
 
   const parseResult = generateFlashcardsCommandSchema.safeParse(jsonBody);
 
   if (!parseResult.success) {
-    return new Response(
-      JSON.stringify({
-        error: "Invalid input",
-        details: parseResult.error.issues,
-      }),
-      { status: 400 },
-    );
+    const firstIssue = parseResult.error.issues[0];
+
+    return createErrorResponse(400, "Bad Request", firstIssue.message, {
+      field: firstIssue.path.join("."),
+      issues: parseResult.error.issues,
+    });
   }
 
   const { input } = parseResult.data;
@@ -52,29 +52,23 @@ export async function POST(context: APIContext): Promise<Response> {
       input,
     });
 
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    return createJsonResponse(200, result);
   } catch (error) {
     if (error instanceof AiProviderError) {
-      return new Response(
-        JSON.stringify({
-          error: "AI generation failed, please try again later.",
-        }),
-        { status: 502 },
+      return createErrorResponse(
+        502,
+        "Bad Gateway",
+        "AI generation failed, please try again later.",
       );
     }
 
     // eslint-disable-next-line no-console
     console.error("Unexpected error in POST /api/v1/flashcards/generate", error);
 
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-    });
+    return createErrorResponse(
+      500,
+      "Internal Server Error",
+      "Internal server error.",
+    );
   }
 }
-
-
