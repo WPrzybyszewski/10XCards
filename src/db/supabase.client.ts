@@ -15,4 +15,7 @@ if (!supabaseAnonKey) {
 
 export const supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
-
+// Ujednolicony typ klienta Supabase używany w całej aplikacji.
+// Zgodnie z regułami projektu, importujemy SupabaseClient z tego pliku,
+// a nie bezpośrednio z `@supabase/supabase-js`.
+export type SupabaseClient = typeof supabaseClient;
