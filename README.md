@@ -1,94 +1,173 @@
-# 10x Astro Starter
+## Project name
 
-A modern, opinionated starter template for building fast, accessible, and AI-friendly web applications.
+Fiszki AI
 
-## Tech Stack
+## Project description
 
-- [Astro](https://astro.build/) v5.5.5 - Modern web framework for building fast, content-focused websites
-- [React](https://react.dev/) v19.0.0 - UI library for building interactive components
-- [TypeScript](https://www.typescriptlang.org/) v5 - Type-safe JavaScript
-- [Tailwind CSS](https://tailwindcss.com/) v4.0.17 - Utility-first CSS framework
+Fiszki AI is a web application that streamlines the creation and study of educational flashcards.  
+The main problem it addresses is that manually creating high‑quality flashcards is time‑consuming, which discourages learners from using spaced repetition despite its proven effectiveness.
 
-## Prerequisites
+The MVP focuses on:
+- generating flashcard proposals from user‑provided text using AI,
+- manual creation, editing and deletion of flashcards,
+- organizing flashcards into user‑defined categories,
+- storing all data per user account (no guest mode),
+- a simple learning mode that shows random cards one by one (no SRS yet).
 
-- Node.js v22.14.0 (as specified in `.nvmrc`)
+More detailed product requirements are documented in `.ai/prd.md`.
+
+## Tech stack
+
+### Frontend
+
+- Astro 5 – fast, island‑based web framework with minimal JavaScript by default
+- React 19 – used for interactive components where client‑side interactivity is needed
+- TypeScript 5 – static typing and better IDE support
+- Tailwind CSS 4 – utility‑first styling
+- shadcn/ui – accessible, composable React UI components used as a base for the UI
+
+### Backend
+
+- Supabase
+  - PostgreSQL database
+  - built‑in authentication and user management
+  - SDK that acts as Backend‑as‑a‑Service
+
+### AI integration
+
+- Openrouter.ai
+  - unified interface to many models (OpenAI, Anthropic, Google and others)
+  - financial limits and key‑level budgeting
+
+### CI/CD and hosting
+
+- GitHub Actions – CI/CD pipelines
+- DigitalOcean – hosting via Docker image
+
+## Getting started locally
+
+### Prerequisites
+
+- Node.js `22.14.0` (as specified in `.nvmrc`)
 - npm (comes with Node.js)
+- Supabase project with URL and anon key
+- Openrouter.ai API key
 
-## Getting Started
-
-1. Clone the repository:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/przeprogramowani/10x-astro-starter.git
 cd 10x-astro-starter
 ```
 
-2. Install dependencies:
+### 2. Set Node version
+
+If you use `nvm`:
+
+```bash
+nvm use
+```
+
+This will select Node.js `22.14.0` as specified in `.nvmrc`.
+
+### 3. Install dependencies
 
 ```bash
 npm install
 ```
 
-3. Run the development server:
+### 4. Configure environment variables
+
+Create a `.env` (or use your preferred env mechanism) with at least:
+
+```bash
+SUPABASE_URL=your-supabase-url
+SUPABASE_KEY=your-supabase-anon-key
+OPENROUTER_API_KEY=your-openrouter-api-key
+```
+
+Exact variable names for Supabase and Openrouter integration should match the implementation in `src/db` and API routes.
+
+### 5. Run the development server
 
 ```bash
 npm run dev
 ```
 
-4. Build for production:
+The dev server will start on the port configured by Astro (typically `http://localhost:4321`).
+
+### 6. Build and preview production build
+
+Build:
 
 ```bash
 npm run build
 ```
 
-## Available Scripts
+Preview the production build locally:
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint issues
-
-## Project Structure
-
-```md
-.
-├── src/
-│   ├── layouts/    # Astro layouts
-│   ├── pages/      # Astro pages
-│   │   └── api/    # API endpoints
-│   ├── components/ # UI components (Astro & React)
-│   └── assets/     # Static assets
-├── public/         # Public assets
+```bash
+npm run preview
 ```
 
-## AI Development Support
+## Available scripts
 
-This project is configured with AI development tools to enhance the development experience, providing guidelines for:
+From `package.json`:
 
-- Project structure
-- Coding practices
-- Frontend development
-- Styling with Tailwind
-- Accessibility best practices
-- Astro and React guidelines
+- `npm run dev` – start the Astro dev server
+- `npm run build` – build the app for production
+- `npm run preview` – preview the production build locally
+- `npm run astro` – run the Astro CLI directly
+- `npm run lint` – run ESLint over the project
+- `npm run lint:fix` – run ESLint with auto‑fix
+- `npm run format` – run Prettier formatting over supported files
 
-### Cursor IDE
+## Project scope
 
-The project includes AI rules in `.cursor/rules/` directory that help Cursor IDE understand the project structure and provide better code suggestions.
+### In scope for MVP
 
-### GitHub Copilot
+- User accounts with authentication via Supabase (no guest mode)
+- User‑owned flashcards with:
+  - required `front` (max 200 characters, trimmed),
+  - required `back` (max 500 characters, trimmed),
+  - required category
+- User‑defined categories, including automatic reassignment of cards to a default category (for example “inne/other”) when a category is removed
+- Manual creation, editing and deletion of flashcards
+- AI‑assisted generation:
+  - user pastes input text,
+  - backend requests AI via Openrouter,
+  - exactly three flashcard proposals are returned,
+  - each proposal can be edited and then accepted or discarded
+- Simple learning mode:
+  - shows one random card at a time,
+  - “show answer” and “next” actions,
+  - avoids repeating the same card in a single session
+- Minimal logging of key events:
+  - `generate_requested`,
+  - `generate_failed`,
+  - `proposal_accepted`.
 
-AI instructions for GitHub Copilot are available in `.github/copilot-instructions.md`
+### Out of scope for MVP
 
-### Windsurf
+- Any custom or advanced spaced repetition algorithm (SuperMemo/Anki‑style SRS)
+- Scheduling and tracking of review intervals
+- Importing content from rich formats (PDF, DOCX, images, etc.)
+- Sharing decks between users or making decks public
+- Integrations with external learning platforms
+- Native mobile applications (MVP is web‑only)
+- Advanced library features (full‑text search, complex filtering, sorting)
+- Formal KPI dashboards and advanced analytics (only minimal technical logging is implemented in MVP)
 
-The `.windsurfrules` file contains AI configuration for Windsurf.
+## Project status
 
-## Contributing
-
-Please follow the AI guidelines and coding practices defined in the AI configuration files when contributing to this project.
+- Current stage: MVP in active development
+- Stability: suitable for local development and experimentation; not yet hardened for production at scale
+- Roadmap (high‑level):
+  - iterate on AI prompts and quality of generated cards,
+  - introduce basic analytics and real KPIs,
+  - design and implement a spaced repetition system,
+  - extend the library and learning experience.
 
 ## License
 
-MIT
+This project is released under the MIT License. A full license text should be added as `LICENSE` in the repository root if it is not already present.
