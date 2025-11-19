@@ -44,6 +44,11 @@ More detailed product requirements are documented in `.ai/prd.md`.
 - GitHub Actions – CI/CD pipelines
 - DigitalOcean – hosting via Docker image
 
+### Testing
+
+- **Unit & integration tests**: Vitest lub Jest wraz z `@testing-library/react` do testowania logiki domenowej, walidacji oraz komponentów React.
+- **End‑to‑end (E2E)**: Playwright lub Cypress do automatycznego testowania kluczowych przepływów użytkownika (auth, generator fiszek, akceptacja propozycji).
+
 ## Getting started locally
 
 ### Prerequisites

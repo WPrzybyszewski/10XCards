@@ -7,6 +7,13 @@ dist/
 # dependencies
 node_modules/
 
+# test artifacts
+coverage/
+test-results/
+playwright-report/
+blob-report/
+supabase/.temp/
+
 # logs
 npm-debug.log*
 yarn-debug.log*
