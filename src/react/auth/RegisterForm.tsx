@@ -1,15 +1,37 @@
 import type { JSX } from "react";
 import { useId, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 import AuthLayout from "./AuthLayout";
 
-interface RegisterFormErrors {
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-}
+const registerSchema = z
+  .object({
+    email: z
+      .string()
+      .min(1, "Podaj adres e-mail.")
+      .email("Adres e-mail ma niepoprawny format."),
+    password: z
+      .string()
+      .min(8, "Hasło musi mieć co najmniej 8 znaków."),
+    confirmPassword: z
+      .string()
+      .min(1, "Powtórz hasło."),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["confirmPassword"],
+        message: "Hasła muszą być identyczne.",
+      });
+    }
+  });
 
-const INITIAL_FORM = {
+type RegisterFormValues = z.infer<typeof registerSchema>;
+
+const INITIAL_VALUES: RegisterFormValues = {
   email: "",
   password: "",
   confirmPassword: "",
@@ -20,53 +42,25 @@ export default function RegisterForm(): JSX.Element {
   const passwordId = useId();
   const confirmPasswordId = useId();
 
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [errors, setErrors] = useState<RegisterFormErrors>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"info" | "error">("info");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (field: keyof typeof INITIAL_FORM) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((current) => ({ ...current, [field]: event.target.value }));
-    if (errors[field]) {
-      setErrors((current) => ({ ...current, [field]: undefined }));
-    }
-  };
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: INITIAL_VALUES,
+    mode: "onBlur",
+    reValidateMode: "onChange",
+  });
 
-  const validate = (): RegisterFormErrors => {
-    const nextErrors: RegisterFormErrors = {};
-
-    if (!form.email.trim()) {
-      nextErrors.email = "Podaj adres e-mail.";
-    } else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      nextErrors.email = "Adres e-mail ma niepoprawny format.";
-    }
-
-    if (form.password.length < 8) {
-      nextErrors.password = "Hasło musi mieć co najmniej 8 znaków.";
-    }
-
-    if (form.confirmPassword !== form.password) {
-      nextErrors.confirmPassword = "Hasła muszą być identyczne.";
-    }
-
-    return nextErrors;
-  };
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nextErrors = validate();
-    setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0) {
-      setStatusType("error");
-      setStatusMessage("Popraw oznaczone pola, aby kontynuować.");
-      return;
-    }
-
+  const onSubmit = async (values: RegisterFormValues) => {
     setStatusType("info");
     setStatusMessage(null);
-    setIsSubmitting(true);
 
     try {
       const response = await fetch("/api/auth/register", {
@@ -75,8 +69,8 @@ export default function RegisterForm(): JSX.Element {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: form.email.trim(),
-          password: form.password,
+          email: values.email.trim(),
+          password: values.password,
         }),
       });
 
@@ -89,10 +83,10 @@ export default function RegisterForm(): JSX.Element {
       if (!response.ok) {
         const fieldName = payload?.details?.field;
         if (fieldName === "email" || fieldName === "password") {
-          setErrors((current) => ({
-            ...current,
-            [fieldName]: payload?.message ?? "Wystąpił błąd.",
-          }));
+          setError(fieldName, {
+            type: "server",
+            message: payload?.message ?? "Wystąpił błąd.",
+          });
         }
 
         setStatusType("error");
@@ -100,7 +94,7 @@ export default function RegisterForm(): JSX.Element {
         return;
       }
 
-      setForm(INITIAL_FORM);
+      reset(INITIAL_VALUES);
       setStatusType("info");
       setStatusMessage(
         payload?.message ??
@@ -109,8 +103,6 @@ export default function RegisterForm(): JSX.Element {
     } catch {
       setStatusType("error");
       setStatusMessage("Nie udało się połączyć z serwerem. Sprawdź sieć i spróbuj ponownie.");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -129,7 +121,7 @@ export default function RegisterForm(): JSX.Element {
         </>
       }
     >
-      <form className="auth-form" noValidate onSubmit={handleSubmit}>
+      <form className="auth-form" noValidate onSubmit={handleSubmit(onSubmit)}>
         <div className="auth-field">
           <label htmlFor={emailId}>Adres e-mail</label>
           <input
@@ -138,12 +130,11 @@ export default function RegisterForm(): JSX.Element {
             type="email"
             className={`auth-input ${errors.email ? "error" : ""}`}
             placeholder="twoje@konto.com"
-            value={form.email}
-            onChange={handleChange("email")}
+            {...register("email")}
             autoComplete="email"
             required
           />
-          {errors.email ? <p className="auth-error">{errors.email}</p> : null}
+          {errors.email ? <p className="auth-error">{errors.email.message}</p> : null}
         </div>
 
         <div className="auth-field">
@@ -154,14 +145,13 @@ export default function RegisterForm(): JSX.Element {
             type="password"
             className={`auth-input ${errors.password ? "error" : ""}`}
             placeholder="Minimum 8 znaków"
-            value={form.password}
-            onChange={handleChange("password")}
+            {...register("password")}
             autoComplete="new-password"
             required
             minLength={8}
           />
           {errors.password ? (
-            <p className="auth-error">{errors.password}</p>
+            <p className="auth-error">{errors.password.message}</p>
           ) : (
             <p className="auth-field-meta">Użyj liter, cyfr i znaków specjalnych.</p>
           )}
@@ -175,12 +165,11 @@ export default function RegisterForm(): JSX.Element {
             type="password"
             className={`auth-input ${errors.confirmPassword ? "error" : ""}`}
             placeholder="Powtórz hasło"
-            value={form.confirmPassword}
-            onChange={handleChange("confirmPassword")}
+            {...register("confirmPassword")}
             autoComplete="new-password"
             required
           />
-          {errors.confirmPassword ? <p className="auth-error">{errors.confirmPassword}</p> : null}
+          {errors.confirmPassword ? <p className="auth-error">{errors.confirmPassword.message}</p> : null}
         </div>
 
         <div className="auth-actions">

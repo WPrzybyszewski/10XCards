@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
 
 import type {
   CategoryOption,
@@ -16,15 +17,6 @@ export interface ToastMessage {
   id: string;
   variant: ToastVariant;
   message: string;
-}
-
-function createInitialInputState(): GeneratorInputViewModel {
-  return {
-    rawValue: "",
-    trimmedLength: 0,
-    isValidLength: false,
-    isGenerating: false,
-  };
 }
 
 const normalizeCategory = (category: CategoryOption): CategoryOption => ({
@@ -46,6 +38,11 @@ const normalizeProposal = (proposal: {
   isSaving: false,
 });
 
+interface GeneratorFormValues {
+  prompt: string;
+  proposals: ProposalViewModel[];
+}
+
 export default function useGeneratorView(): {
   input: GeneratorInputViewModel;
   categories: CategoryOption[];
@@ -64,22 +61,47 @@ export default function useGeneratorView(): {
 } {
   const api = useMemo(() => createGeneratorApi(), []);
 
-  const [input, setInput] = useState<GeneratorInputViewModel>(createInitialInputState());
   const [generationId, setGenerationId] = useState<string | null>(null);
-  const [proposals, setProposals] = useState<ProposalViewModel[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const setInputValue = useCallback((value: string) => {
-    const trimmedLength = value.trim().length;
-    setInput((previous) => ({
-      ...previous,
-      rawValue: value,
+  const { control, watch, setValue, getValues } = useForm<GeneratorFormValues>({
+    defaultValues: {
+      prompt: "",
+      proposals: [],
+    },
+    mode: "onChange",
+  });
+
+  const { replace, update, remove } = useFieldArray({
+    control,
+    name: "proposals",
+    keyName: "fieldKey",
+  });
+
+  const promptValue = watch("prompt") ?? "";
+  const proposals = watch("proposals") ?? [];
+  const trimmedLength = promptValue.trim().length;
+  const isValidLength = trimmedLength >= MIN_INPUT && trimmedLength <= MAX_INPUT;
+
+  const input: GeneratorInputViewModel = useMemo(
+    () => ({
+      rawValue: promptValue,
       trimmedLength,
-      isValidLength: trimmedLength >= MIN_INPUT && trimmedLength <= MAX_INPUT,
-    }));
-  }, []);
+      isValidLength,
+      isGenerating,
+    }),
+    [promptValue, trimmedLength, isValidLength, isGenerating],
+  );
+
+  const setInputValue = useCallback(
+    (value: string) => {
+      setValue("prompt", value, { shouldDirty: true });
+    },
+    [setValue],
+  );
 
   const pushToast = useCallback((variant: ToastVariant, message: string) => {
     setToasts((previous) => [
@@ -136,20 +158,20 @@ export default function useGeneratorView(): {
   }, [loadCategories]);
 
   const generate = useCallback(async () => {
-    if (!input.isValidLength) {
+    if (!isValidLength) {
       pushToast("error", "Tekst musi mieć długość od 1000 do 10000 znaków.");
       return;
     }
 
-    setInput((previous) => ({ ...previous, isGenerating: true }));
+    setIsGenerating(true);
 
     try {
       const payload = {
-        input: input.rawValue.trim(),
+        input: promptValue.trim(),
       };
       const response = await api.generate(payload);
       setGenerationId(response.generation_id);
-      setProposals(response.proposals.map(normalizeProposal));
+      replace(response.proposals.map(normalizeProposal));
       pushToast(
         "success",
         "Gotowe! Edytuj propozycje i zaakceptuj wybrane fiszki.",
@@ -163,19 +185,23 @@ export default function useGeneratorView(): {
           : "Nie udało się wygenerować fiszek.",
       );
     } finally {
-      setInput((previous) => ({ ...previous, isGenerating: false }));
+      setIsGenerating(false);
     }
-  }, [api, input, pushToast]);
+  }, [api, promptValue, pushToast, replace, isValidLength]);
 
   const updateProposal = useCallback(
     (proposalId: string, patch: Partial<ProposalViewModel>) => {
-      setProposals((previous) =>
-        previous.map((proposal) =>
-          proposal.id === proposalId ? { ...proposal, ...patch } : proposal,
-        ),
+      const currentProposals = getValues("proposals");
+      const index = currentProposals.findIndex(
+        (proposal) => proposal.id === proposalId,
       );
+      if (index === -1) {
+        return;
+      }
+
+      update(index, { ...currentProposals[index], ...patch });
     },
-    [],
+    [getValues, update],
   );
 
   const validateProposal = (proposal: ProposalViewModel): string | null => {
@@ -202,7 +228,15 @@ export default function useGeneratorView(): {
 
   const acceptProposal = useCallback(
     async (proposalId: string) => {
-      const proposal = proposals.find((item) => item.id === proposalId);
+      const currentProposals = getValues("proposals");
+      const index = currentProposals.findIndex(
+        (item) => item.id === proposalId,
+      );
+      if (index === -1) {
+        return;
+      }
+
+      const proposal = currentProposals[index];
       if (!proposal) {
         return;
       }
@@ -224,9 +258,7 @@ export default function useGeneratorView(): {
           back: proposal.back.trim(),
         });
 
-        setProposals((previous) =>
-          previous.filter((item) => item.id !== proposalId),
-        );
+        remove(index);
         pushToast("success", "Fiszka została zapisana.");
       } catch (error) {
         console.error(error);
@@ -239,15 +271,24 @@ export default function useGeneratorView(): {
         updateProposal(proposalId, { isSaving: false });
       }
     },
-    [api, generationId, proposals, pushToast, updateProposal],
+    [api, generationId, getValues, pushToast, remove, updateProposal],
   );
 
-  const rejectProposal = useCallback((proposalId: string) => {
-    setProposals((previous) =>
-      previous.filter((proposal) => proposal.id !== proposalId),
-    );
-    pushToast("info", "Propozycja została odrzucona.");
-  }, [pushToast]);
+  const rejectProposal = useCallback(
+    (proposalId: string) => {
+      const currentProposals = getValues("proposals");
+      const index = currentProposals.findIndex(
+        (proposal) => proposal.id === proposalId,
+      );
+      if (index === -1) {
+        return;
+      }
+
+      remove(index);
+      pushToast("info", "Propozycja została odrzucona.");
+    },
+    [getValues, pushToast, remove],
+  );
 
   return {
     input,
