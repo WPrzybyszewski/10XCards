@@ -1,15 +1,35 @@
-name: Hello World Workflow
+name: CI
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
-  hello:
+  quality:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Say Hello
-        run: echo "Hello, GitHub Actions!"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Build for production
+        run: npm run build
