@@ -1,10 +1,19 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import LoginForm from "../../react/auth/LoginForm.tsx";
+import { isFeatureEnabled } from "@/features/featureFlags";
+
+const isAuthEnabled = isFeatureEnabled("auth");
 ---
 
 <Layout title="Logowanie">
-  <LoginForm client:load />
+  {
+    isAuthEnabled ? (
+      <LoginForm client:load />
+    ) : (
+      <p>Logowanie jest tymczasowo wyłączone.</p>
+    )
+  }
 </Layout>
 
 

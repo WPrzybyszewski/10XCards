@@ -15,6 +15,7 @@ import type {
   CreateCategoryCommand,
   ListCategoriesResponseDTO,
 } from "@/types";
+import { isFeatureEnabled } from "@/features/featureFlags";
 
 /**
  * Handler endpointu GET /api/v1/categories.
@@ -25,6 +26,14 @@ import type {
 export async function GET(context: APIContext): Promise<Response> {
   const { locals, url } = context;
   const supabase = locals.supabase;
+
+  if (!isFeatureEnabled("collections")) {
+    return createErrorResponse(
+      503,
+      "Service Unavailable",
+      "Moduł kolekcji jest tymczasowo wyłączony.",
+    );
+  }
 
   if (!supabase) {
     return createErrorResponse(
@@ -109,6 +118,14 @@ export async function GET(context: APIContext): Promise<Response> {
 export async function POST(context: APIContext): Promise<Response> {
   const { request, locals } = context;
   const supabase = locals.supabase;
+
+  if (!isFeatureEnabled("collections")) {
+    return createErrorResponse(
+      503,
+      "Service Unavailable",
+      "Moduł kolekcji jest tymczasowo wyłączony.",
+    );
+  }
 
   if (!supabase) {
     return createErrorResponse(

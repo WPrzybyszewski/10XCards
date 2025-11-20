@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 
+import { isFeatureEnabled } from "@/features/featureFlags";
 import type {
   CategoryOption,
   GeneratorInputViewModel,
@@ -42,6 +43,8 @@ interface GeneratorFormValues {
   prompt: string;
   proposals: ProposalViewModel[];
 }
+
+const COLLECTIONS_FEATURE_ENABLED = isFeatureEnabled("collections");
 
 export default function useGeneratorView(): {
   input: GeneratorInputViewModel;
@@ -135,6 +138,12 @@ export default function useGeneratorView(): {
   }, [toasts, dismissToast]);
 
   const loadCategories = useCallback(async () => {
+    if (!COLLECTIONS_FEATURE_ENABLED) {
+      setCategories([]);
+      setIsCategoriesLoading(false);
+      return;
+    }
+
     setIsCategoriesLoading(true);
     try {
       const result = await api.listCategories();

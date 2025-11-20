@@ -5,6 +5,7 @@ interface GeneratorProposalsPanelProps {
   proposals: ProposalViewModel[];
   categories: CategoryOption[];
   categoriesLoading?: boolean;
+  collectionsEnabled?: boolean;
   onChange(proposalId: string, patch: Partial<ProposalViewModel>): void;
   onAccept(proposalId: string): void;
   onReject(proposalId: string): void;
@@ -14,6 +15,7 @@ export default function GeneratorProposalsPanel({
   proposals,
   categories,
   categoriesLoading = false,
+  collectionsEnabled = true,
   onChange,
   onAccept,
   onReject,
@@ -35,6 +37,12 @@ export default function GeneratorProposalsPanel({
           Możesz poprawić pytania i odpowiedzi oraz przypisać odpowiednie
           kategorie. Akceptuj tylko te karty, które rzeczywiście chcesz zapisać.
         </p>
+        {!collectionsEnabled && (
+          <p className="generator-section-description subtle">
+            Moduł kolekcji jest wyłączony – przypisywanie kategorii i zapisywanie
+            fiszek jest chwilowo niedostępne.
+          </p>
+        )}
         {categoriesLoading && (
           <p className="generator-section-description subtle">
             Ładuję listę kategorii...
@@ -48,6 +56,7 @@ export default function GeneratorProposalsPanel({
             key={proposal.id}
             proposal={proposal}
             categories={categories}
+            collectionsEnabled={collectionsEnabled}
             onChange={onChange}
             onAccept={onAccept}
             onReject={onReject}

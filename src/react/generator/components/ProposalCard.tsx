@@ -3,6 +3,7 @@ import type { CategoryOption, ProposalViewModel } from "../types";
 interface ProposalCardProps {
   proposal: ProposalViewModel;
   categories: CategoryOption[];
+  collectionsEnabled?: boolean;
   onChange(proposalId: string, patch: Partial<ProposalViewModel>): void;
   onAccept(proposalId: string): void;
   onReject(proposalId: string): void;
@@ -11,6 +12,7 @@ interface ProposalCardProps {
 export default function ProposalCard({
   proposal,
   categories,
+  collectionsEnabled = true,
   onChange,
   onAccept,
   onReject,
@@ -20,8 +22,13 @@ export default function ProposalCard({
 
   const isFrontValid = frontLength >= 1 && frontLength <= 200;
   const isBackValid = backLength >= 1 && backLength <= 500;
-  const isCategoryValid = Boolean(proposal.categoryId);
-  const canAccept = isFrontValid && isBackValid && isCategoryValid && !proposal.isSaving;
+  const isCategoryValid = !collectionsEnabled || Boolean(proposal.categoryId);
+  const canAccept =
+    collectionsEnabled &&
+    isFrontValid &&
+    isBackValid &&
+    isCategoryValid &&
+    !proposal.isSaving;
 
   return (
     <article className="proposal-card">
@@ -81,25 +88,36 @@ export default function ProposalCard({
 
       <div className="proposal-card__field">
         <label htmlFor={`category-${proposal.id}`}>Kategoria</label>
-        <select
-          id={`category-${proposal.id}`}
-          value={proposal.categoryId ?? ""}
-          aria-invalid={!isCategoryValid}
-          onChange={(event) =>
-            onChange(proposal.id, {
-              categoryId: event.target.value || null,
-            })
-          }
-        >
-          <option value="">Wybierz kategorię</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-        {!isCategoryValid && (
-          <span className="helper error">Wybierz kategorię, aby zapisać.</span>
+        {collectionsEnabled ? (
+          <>
+            <select
+              id={`category-${proposal.id}`}
+              value={proposal.categoryId ?? ""}
+              aria-invalid={!isCategoryValid}
+              onChange={(event) =>
+                onChange(proposal.id, {
+                  categoryId: event.target.value || null,
+                })
+              }
+            >
+              <option value="">Wybierz kategorię</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            {!isCategoryValid && (
+              <span className="helper error">
+                Wybierz kategorię, aby zapisać.
+              </span>
+            )}
+          </>
+        ) : (
+          <p className="helper">
+            Kolekcje są chwilowo wyłączone – przypisanie kategorii będzie
+            możliwe po ponownym włączeniu modułu.
+          </p>
         )}
       </div>
     </article>

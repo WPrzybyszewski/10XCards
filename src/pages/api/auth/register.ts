@@ -2,10 +2,19 @@ import type { APIContext } from "astro";
 
 import { createErrorResponse, createJsonResponse } from "@/lib/http";
 import { registerCommandSchema } from "@/lib/validation/auth";
+import { isFeatureEnabled } from "@/features/featureFlags";
 
 export async function POST(context: APIContext): Promise<Response> {
   const { request, locals } = context;
   const supabase = locals.supabase;
+
+  if (!isFeatureEnabled("auth")) {
+    return createErrorResponse(
+      503,
+      "Service Unavailable",
+      "Rejestracja jest tymczasowo niedostępna.",
+    );
+  }
 
   if (!supabase) {
     return createErrorResponse(

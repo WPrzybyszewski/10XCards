@@ -1,5 +1,6 @@
 import clsx from "clsx";
 
+import { isFeatureEnabled } from "@/features/featureFlags";
 import GeneratorLayout from "./components/GeneratorLayout";
 import GeneratorInputPanel from "./components/GeneratorInputPanel";
 import GeneratorProposalsPanel from "./components/GeneratorProposalsPanel";
@@ -13,10 +14,18 @@ const NAV_LINKS = [
   { label: "Generator", href: "/app/generator" },
   { label: "Fiszki", href: "/app/flashcards" },
   { label: "Nauka", href: "/app/learn" },
-  { label: "Kategorie", href: "/app/categories" },
-];
+  { label: "Kategorie", href: "/app/categories", requiresCollections: true },
+] as const;
 
 export default function GeneratorPage(): JSX.Element {
+  const isCollectionsEnabled = isFeatureEnabled("collections");
+  const filteredNavLinks = NAV_LINKS.filter((link) => {
+    if (link.requiresCollections && !isCollectionsEnabled) {
+      return false;
+    }
+    return true;
+  });
+
   const {
     input,
     categories,
@@ -37,7 +46,7 @@ export default function GeneratorPage(): JSX.Element {
         <div className="generator-logo">Fiszki AI</div>
         <nav aria-label="Główna nawigacja">
           <ul className="generator-nav-list">
-            {NAV_LINKS.map((link) => (
+            {filteredNavLinks.map((link) => (
               <li key={link.href}>
                 <a
                   href={link.href}
@@ -81,6 +90,7 @@ export default function GeneratorPage(): JSX.Element {
               proposals={proposals}
               categories={categories}
               categoriesLoading={isCategoriesLoading}
+              collectionsEnabled={isCollectionsEnabled}
               onChange={updateProposal}
               onAccept={acceptProposal}
               onReject={rejectProposal}

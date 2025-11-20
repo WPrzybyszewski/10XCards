@@ -1,0 +1,219 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches: [master]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  workflow_dispatch:
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: ./.github/actions/node-setup
+
+      - name: Run ESLint
+        run: npm run lint
+
+  unit-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      lines: ${{ steps.unit-coverage.outputs.lines }}
+      statements: ${{ steps.unit-coverage.outputs.statements }}
+      branches: ${{ steps.unit-coverage.outputs.branches }}
+      functions: ${{ steps.unit-coverage.outputs.functions }}
+
+    steps:
+      - uses: ./.github/actions/node-setup
+
+      - name: Run unit tests with coverage
+        run: npm run test:unit -- --coverage
+
+      - name: Capture unit coverage summary
+        id: unit-coverage
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+
+          try {
+            const summary = JSON.parse(readFileSync('coverage/coverage-summary.json', 'utf-8'));
+            const total = summary.total ?? {};
+            const createLine = (key, value) => `${key}=${value ?? 0}`;
+            const lines = [
+              createLine('lines', total.lines?.pct),
+              createLine('statements', total.statements?.pct),
+              createLine('branches', total.branches?.pct),
+              createLine('functions', total.functions?.pct),
+            ].join('\n');
+            appendFileSync(process.env.GITHUB_OUTPUT, `${lines}\n`);
+          } catch (error) {
+            console.error('Failed to read coverage summary', error);
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload unit coverage
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-unit
+          if-no-files-found: ignore
+          path: coverage
+
+  e2e-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    environment:
+      name: integration
+    permissions:
+      contents: read
+    env:
+      NODE_ENV: integration
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      SUPABASE_PUBLIC_KEY: ${{ secrets.SUPABASE_PUBLIC_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      E2E_USERNAME_ID: ${{ secrets.E2E_USERNAME_ID }}
+      E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      E2E_BASE_URL: http://127.0.0.1:4321
+      PORT: 4321
+    outputs:
+      lines: ${{ steps.e2e-coverage.outputs.lines }}
+      statements: ${{ steps.e2e-coverage.outputs.statements }}
+      branches: ${{ steps.e2e-coverage.outputs.branches }}
+      functions: ${{ steps.e2e-coverage.outputs.functions }}
+
+    steps:
+      - uses: ./.github/actions/node-setup
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests with coverage
+        run: >
+          npx c8 --reporter=lcov --reporter=text --reporter=json-summary
+          --report-dir=coverage-e2e
+          npm run test:e2e
+
+      - name: Capture e2e coverage summary
+        id: e2e-coverage
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+
+          try {
+            const summary = JSON.parse(readFileSync('coverage-e2e/coverage-summary.json', 'utf-8'));
+            const total = summary.total ?? {};
+            const createLine = (key, value) => `${key}=${value ?? 0}`;
+            const lines = [
+              createLine('lines', total.lines?.pct),
+              createLine('statements', total.statements?.pct),
+              createLine('branches', total.branches?.pct),
+              createLine('functions', total.functions?.pct),
+            ].join('\n');
+            appendFileSync(process.env.GITHUB_OUTPUT, `${lines}\n`);
+          } catch (error) {
+            console.error('Failed to read E2E coverage summary', error);
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload e2e coverage
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-e2e
+          if-no-files-found: ignore
+          path: coverage-e2e
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          if-no-files-found: ignore
+          path: playwright-report
+
+  status-comment:
+    needs:
+      - lint
+      - unit-tests
+      - e2e-tests
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    env:
+      LINT_RESULT: ${{ needs.lint.result }}
+      UNIT_RESULT: ${{ needs.unit-tests.result }}
+      E2E_RESULT: ${{ needs.e2e-tests.result }}
+      UNIT_LINES: ${{ needs.unit-tests.outputs.lines }}
+      E2E_LINES: ${{ needs.e2e-tests.outputs.lines }}
+    steps:
+      - name: Publish status comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const identifier = '<!-- ci-status-comment -->';
+            const status = (label, result, coverage) => {
+              const emoji =
+                result === 'success' ? '✅' :
+                result === 'failure' ? '❌' :
+                result === 'skipped' ? '⏭️' :
+                '⚪';
+              const coverageText = coverage ? ` — lines: ${coverage}%` : '';
+              return `${emoji} **${label}**: ${result}${coverageText}`;
+            };
+
+            const body = [
+              identifier,
+              '### Pull Request CI',
+              status('Lint', process.env.LINT_RESULT),
+              status('Unit tests', process.env.UNIT_RESULT, process.env.UNIT_LINES),
+              status('E2E tests', process.env.E2E_RESULT, process.env.E2E_LINES),
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const previous = comments.find(
+              (comment) =>
+                comment.user?.login === 'github-actions[bot]' &&
+                comment.body?.includes(identifier),
+            );
+
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }

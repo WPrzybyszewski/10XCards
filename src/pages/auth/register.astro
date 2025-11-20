@@ -1,10 +1,19 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import RegisterForm from "../../react/auth/RegisterForm.tsx";
+import { isFeatureEnabled } from "@/features/featureFlags";
+
+const isAuthEnabled = isFeatureEnabled("auth");
 ---
 
 <Layout title="Rejestracja">
-  <RegisterForm client:load />
+  {
+    isAuthEnabled ? (
+      <RegisterForm client:load />
+    ) : (
+      <p>Rejestracja jest tymczasowo wyłączona.</p>
+    )
+  }
 </Layout>
 
 
