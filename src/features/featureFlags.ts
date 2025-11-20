@@ -7,7 +7,7 @@ type EnvironmentConfig = Record<EnvironmentName, FeatureFlagConfig>;
 const ENV_VARIABLE_NAME = "ENV_NAME";
 
 const ENVIRONMENT_FLAGS: EnvironmentConfig = {
-  local: { auth: false, collections: true },
+  local: { auth: true, collections: true },
   integration: { auth: true, collections: false },
   prod: { auth: true, collections: true },
 };

@@ -18,6 +18,7 @@ import type { AcceptFlashcardProposalCommand } from "@/types";
 export async function POST(context: APIContext): Promise<Response> {
   const { request, locals } = context;
   const supabase = locals.supabase;
+  const userId = locals.session?.user?.id ?? null;
 
   if (!supabase) {
     return createErrorResponse(
@@ -27,10 +28,13 @@ export async function POST(context: APIContext): Promise<Response> {
     );
   }
 
-  // 1. Użytkownik „na sztywno” na potrzeby dev (bez pełnej autoryzacji).
-  // Upewnij się, że taki user istnieje w auth.users ORAZ że polityki RLS
-  // pozwalają na operacje dla tego użytkownika (np. poprzez service_role).
-  const userId = "11111111-1111-1111-1111-111111111111";
+  if (!userId) {
+    return createErrorResponse(
+      401,
+      "Unauthorized",
+      "You must be signed in to accept flashcards.",
+    );
+  }
 
   // 2. Odczyt i walidacja body JSON za pomocą Zod.
   let jsonBody: unknown;

@@ -19,6 +19,14 @@ export async function GET(context: APIContext): Promise<Response> {
   const { locals, url } = context;
   const supabase = locals.supabase;
 
+  if (!locals.session?.user?.id) {
+    return createErrorResponse(
+      401,
+      "Unauthorized",
+      "You must be signed in to access flashcards.",
+    );
+  }
+
   if (!supabase) {
     return createErrorResponse(
       500,

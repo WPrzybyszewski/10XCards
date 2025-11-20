@@ -27,6 +27,14 @@ export async function GET(context: APIContext): Promise<Response> {
   const { locals, url } = context;
   const supabase = locals.supabase;
 
+  if (!locals.session?.user?.id) {
+    return createErrorResponse(
+      401,
+      "Unauthorized",
+      "You must be signed in to access categories.",
+    );
+  }
+
   if (!isFeatureEnabled("collections")) {
     return createErrorResponse(
       503,
@@ -118,6 +126,7 @@ export async function GET(context: APIContext): Promise<Response> {
 export async function POST(context: APIContext): Promise<Response> {
   const { request, locals } = context;
   const supabase = locals.supabase;
+  const userId = locals.session?.user?.id ?? null;
 
   if (!isFeatureEnabled("collections")) {
     return createErrorResponse(
@@ -135,8 +144,13 @@ export async function POST(context: APIContext): Promise<Response> {
     );
   }
 
-  // Użytkownik „na sztywno” na potrzeby dev (bez pełnej autoryzacji).
-  const userId = "11111111-1111-1111-1111-111111111111";
+  if (!userId) {
+    return createErrorResponse(
+      401,
+      "Unauthorized",
+      "You must be signed in to create categories.",
+    );
+  }
 
   // 1. Odczyt body JSON.
   let jsonBody: unknown;

@@ -1,9 +1,12 @@
+import type { Session } from "@supabase/supabase-js";
+
 import type { SupabaseClient } from "./db/supabase.client";
 
 declare global {
   namespace App {
     interface Locals {
       supabase: SupabaseClient;
+      session: Session | null;
     }
   }
 }
