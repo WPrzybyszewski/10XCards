@@ -1,5 +1,7 @@
 # build output
 dist/
+.wrangler/
+tmp-worker-test.mjs
 
 # generated types
 .astro/
