@@ -1,0 +1,12 @@
+name = "10xcards"
+main = "./dist/server/entry.mjs"
+compatibility_date = "2025-11-20"
+compatibility_flags = ["nodejs_compat"]
+
+[site]
+bucket = "./dist/client"
+pages_build_output_dir = "./dist"
+
+[build]
+command = "npm run build"
+
