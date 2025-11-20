@@ -4,6 +4,3 @@ compatibility_flags = ["nodejs_compat"]
 
 pages_build_output_dir = "./dist"
 
-[env.production]
-vars = { SUPABASE_URL = "${SUPABASE_URL}", SUPABASE_KEY = "${SUPABASE_KEY}", ENV_NAME = "${ENV_NAME}", OPENROUTER_API_KEY = "${OPENROUTER_API_KEY}" }
-
