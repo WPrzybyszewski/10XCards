@@ -17,10 +17,13 @@ export const bootstrapRuntimeDiagnostics = (): void => {
 
   logEnvironmentSummary();
   attachProcessErrorLogging();
+  logSignalHandling();
 };
 
 const logEnvironmentSummary = (): void => {
   const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+
+  console.log(`[runtime] Fiszki AI booting… PID=${process.pid}`);
 
   if (missing.length > 0) {
     console.error(
@@ -43,4 +46,18 @@ const attachProcessErrorLogging = (): void => {
   });
 };
 
+const logSignalHandling = (): void => {
+  const signals: NodeJS.Signals[] = [
+    "SIGTERM",
+    "SIGINT",
+    "SIGHUP",
+    "SIGUSR2",
+  ];
+
+  signals.forEach((signal) => {
+    process.once(signal, () => {
+      console.warn(`[runtime] Received ${signal}, shutting down gracefully…`);
+    });
+  });
+};
 
