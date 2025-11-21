@@ -1,5 +1,16 @@
+import process from 'node:process';
+
 const OPENROUTER_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 const OPENROUTER_ENDPOINT = '/chat/completions';
+
+const readServerEnv = (key: keyof ImportMetaEnv): string | undefined => {
+  const runtimeValue = process.env?.[key as string];
+  if (runtimeValue && runtimeValue.length > 0) {
+    return runtimeValue;
+  }
+
+  return undefined;
+};
 
 export type OpenRouterMessageRole = 'system' | 'user' | 'assistant' | 'tool';
 
@@ -88,7 +99,7 @@ export interface OpenRouterRetryOptions {
  * Konfiguracja usługi OpenRouterService.
  *
  * Każde pole może zostać nadpisane w testach lub specyficznych przypadkach użycia,
- * a wartości domyślne są odczytywane ze zmiennych środowiskowych import.meta.env.
+ * a wartości domyślne są odczytywane ze zmiennych środowiskowych środowiska uruchomieniowego.
  */
 export interface OpenRouterServiceOptions {
   apiKey?: string;
@@ -186,31 +197,31 @@ export class OpenRouterService {
   private readonly fetchAdapter: OpenRouterFetchAdapter;
 
   /**
-   * @param options Konfiguracja usługi; brakujące wartości są uzupełniane z import.meta.env.
+   * @param options Konfiguracja usługi; brakujące wartości są uzupełniane ze zmiennych środowiskowych.
    */
   constructor(private readonly options: OpenRouterServiceOptions = {}) {
-    const apiKey = options.apiKey ?? import.meta.env.OPENROUTER_API_KEY;
+    const apiKey = options.apiKey ?? readServerEnv('OPENROUTER_API_KEY');
     if (!apiKey) {
       throw new OpenRouterConfigError('OPENROUTER_API_KEY is not configured');
     }
 
     const baseUrl =
-      options.baseUrl ?? import.meta.env.OPENROUTER_BASE_URL ?? OPENROUTER_DEFAULT_BASE_URL;
+      options.baseUrl ?? readServerEnv('OPENROUTER_BASE_URL') ?? OPENROUTER_DEFAULT_BASE_URL;
     const defaultModel =
-      options.defaultModel ?? import.meta.env.OPENROUTER_DEFAULT_MODEL ?? 'openai/gpt-4.1-mini';
+      options.defaultModel ?? readServerEnv('OPENROUTER_DEFAULT_MODEL') ?? 'openai/gpt-4.1-mini';
 
     this.apiKey = apiKey;
     this.baseUrl = this.sanitizeBaseUrl(baseUrl);
     this.defaultModel = defaultModel;
     this.defaultSystemPrompt =
-      options.defaultSystemPrompt ?? import.meta.env.OPENROUTER_DEFAULT_SYSTEM_PROMPT;
+      options.defaultSystemPrompt ?? readServerEnv('OPENROUTER_DEFAULT_SYSTEM_PROMPT');
     this.defaultModelParams = options.defaultModelParams ?? {};
     this.requestTimeoutMs = options.requestTimeoutMs ?? this.readTimeoutFromEnv() ?? 20000;
     this.retryAttempts = Math.max(0, options.retry?.attempts ?? 1);
     this.retryBaseDelay = Math.max(50, options.retry?.baseDelayMs ?? 300);
     this.retryMaxDelay = Math.max(this.retryBaseDelay, options.retry?.maxDelayMs ?? 2000);
-    this.appUrl = options.appUrl ?? import.meta.env.OPENROUTER_APP_URL;
-    this.appTitle = options.appTitle ?? import.meta.env.OPENROUTER_APP_TITLE;
+    this.appUrl = options.appUrl ?? readServerEnv('OPENROUTER_APP_URL');
+    this.appTitle = options.appTitle ?? readServerEnv('OPENROUTER_APP_TITLE');
     this.fetchAdapter = options.fetchAdapter ?? new DefaultFetchAdapter();
   }
 
@@ -504,7 +515,7 @@ export class OpenRouterService {
   }
 
   private readTimeoutFromEnv(): number | undefined {
-    const value = import.meta.env.OPENROUTER_REQUEST_TIMEOUT_MS;
+    const value = readServerEnv('OPENROUTER_REQUEST_TIMEOUT_MS');
     if (!value) {
       return undefined;
     }

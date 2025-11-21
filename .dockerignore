@@ -1,0 +1,13 @@
+.git
+node_modules
+dist
+tmp
+tmp-worker-test.mjs
+test-results
+tests
+playwright-report
+supabase
+.vscode
+.DS_Store
+npm-debug.log*
+

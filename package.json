@@ -18,7 +18,7 @@
     "test:e2e:headed": "playwright test --headed --workers=1"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^12.6.11",
+    "@astrojs/node": "^9.5.1",
     "@astrojs/react": "^4.3.1",
     "@astrojs/sitemap": "^3.5.1",
     "@hookform/resolvers": "^4.0.1",

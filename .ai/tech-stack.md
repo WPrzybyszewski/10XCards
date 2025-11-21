@@ -22,3 +22,7 @@ Testowanie:
 CI/CD i Hosting:
 - Github Actions do tworzenia pipeline’ów CI/CD
 - DigitalOcean do hostowania aplikacji za pośrednictwem obrazu docker
+  - Budowanie i publikacja obrazów Dockera na potrzeby środowisk testowych i produkcyjnych
+  - Konfiguracja zmiennych środowiskowych (np. klucze Supabase, OpenRouter) bezpośrednio w panelu DigitalOcean
+  - Skalowanie aplikacji przez zmianę parametrów instancji oraz liczby replik kontenera
+  - Monitorowanie podstawowych metryk (CPU, RAM, dysk) oraz logów kontenerów w celu diagnozowania problemów
