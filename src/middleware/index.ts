@@ -1,6 +1,9 @@
 import { defineMiddleware } from "astro:middleware";
 
 import { createSupabaseServerClient } from "../db/supabase.server";
+import { bootstrapRuntimeDiagnostics } from "../lib/runtimeDiagnostics";
+
+bootstrapRuntimeDiagnostics();
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const supabase = createSupabaseServerClient(context.cookies);
