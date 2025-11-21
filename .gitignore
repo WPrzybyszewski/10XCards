@@ -31,3 +31,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# DigitalOcean App Platform spec
+tenxcards-app.yaml
