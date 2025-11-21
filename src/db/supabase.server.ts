@@ -20,6 +20,7 @@ if (!supabaseAnonKey) {
 
 export function createSupabaseServerClient(cookies: AstroCookies) {
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+
     cookies: {
       get: (name) => cookies.get(name)?.value,
       set: (name, value, options) => {

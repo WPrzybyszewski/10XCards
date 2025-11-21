@@ -20,6 +20,7 @@ const VALID_ENVIRONMENTS = new Set<EnvironmentName>([
 ]);
 
 function readEnvironmentVariable(name: string): string | undefined {
+  console.log("readEnvironmentVariable", name);
   if (
     typeof process !== "undefined" &&
     typeof process.env === "object" &&
