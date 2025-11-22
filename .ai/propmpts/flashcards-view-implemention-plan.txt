@@ -1,0 +1,403 @@
+Jako starszy programista frontendu Twoim zadaniem jest stworzenie szczegółowego planu wdrożenia nowego widoku w aplikacji internetowej. Plan ten powinien być kompleksowy i wystarczająco jasny dla innego programisty frontendowego, aby mógł poprawnie i wydajnie wdrożyć widok.
+
+Najpierw przejrzyj następujące informacje:
+
+1. Product Requirements Document (PRD):
+<prd>
+@prd.md
+</prd>
+
+2. Opis widoku:
+<view_description>
+
+### 2.4. Widok: Lista fiszek
+
+- **Nazwa widoku**: Lista fiszek
+- **Ścieżka widoku**: `/app/flashcards`
+- **Główny cel**:
+  - Umożliwienie użytkownikowi przeglądania istniejących fiszek (US-010).
+  - Zapewnienie punktu wejścia do edycji i usuwania fiszek (US-007).
+  - Umożliwienie ręcznego dodawania nowej fiszki (US-006).
+- **Kluczowe informacje do wyświetlenia**:
+  - Lista fiszek użytkownika (pobrana z `GET /api/v1/flashcards`).
+  - Dla każdej fiszki:
+    - `front` (przód karty).
+    - `category` (np. nazwa kategorii, zmapowana z `category_id`).
+    - ewentualnie data utworzenia.
+  - Stany:
+    - brak fiszek (stan pusty z zachętą do utworzenia lub skorzystania z generatora).
+    - ładowanie (spinner).
+- **Kluczowe komponenty widoku**:
+  - Tabela lub lista kart fiszek.
+  - Przycisk „Dodaj fiszkę” (otwiera modal tworzenia).
+  - Ikony/przyciski „Edytuj” i „Usuń” dla każdej fiszki (wywołujące modale).
+  - Spinnery podczas ładowania listy.
+  - Stan pusty (komunikat i CTA „Dodaj pierwszą fiszkę” / „Przejdź do generatora”).
+- **UX, dostępność i względy bezpieczeństwa**:
+  - Brak filtrów w MVP – lista prezentuje domyślnie wszystkie fiszki użytkownika (można zastosować domyślne sortowanie np. najnowsze na górze).
+  - Modal tworzenia/edycji zawiera te same zasady walidacji co wszystkie formularze fiszek (długość front/back, wymagane `category_id`) (US-006, US-007).
+  - Usuwanie fiszki wymaga potwierdzenia w modalnym oknie, aby uniknąć przypadkowych usunięć (US-007).
+  - Dane ładowane z API tylko dla zalogowanego użytkownika, z zachowaniem RLS po stronie Supabase (US-013).
+
+
+
+</view_description>
+
+3. User Stories:
+<user_stories>
+
+### US-006 – Ręczne tworzenie fiszki
+
+Tytuł: Ręczne dodanie nowej fiszki  
+Opis: Jako zalogowany użytkownik chcę ręcznie dodać fiszkę, aby mieć pełną kontrolę nad jej treścią.  
+Kryteria akceptacji:
+
+- Użytkownik może otworzyć formularz tworzenia fiszki i wprowadzić front oraz back.
+- Użytkownik musi wybrać kategorię; zapis bez kategorii jest niemożliwy.
+- System wyświetla licznik znaków dla front i back.
+- Próba zapisu z front dłuższym niż 200 znaków lub back dłuższym niż 500 znaków kończy się blokadą zapisu i komunikatem błędu.
+- Po poprawnym zapisie fiszka jest widoczna w liście fiszek.
+
+### US-007 – Edycja i usuwanie fiszki
+
+Tytuł: Edycja i usunięcie istniejącej fiszki  
+Opis: Jako użytkownik chcę edytować lub usuwać istniejące fiszki, aby utrzymywać ich aktualność i jakość.  
+Kryteria akceptacji:
+
+- Użytkownik może z listy fiszek przejść do edycji wybranej karty.
+- W edycji użytkownik może zmienić front, back i kategorię z zachowaniem tych samych reguł walidacji jak przy tworzeniu.
+- Zapis zmian aktualizuje fiszkę i jest widoczny w liście oraz w trybie nauki.
+- Użytkownik może usunąć fiszkę; po potwierdzeniu usunięcia karta znika z listy i nie jest dostępna w trybie nauki.
+
+### US-010 – Przegląd listy fiszek
+
+Tytuł: Przegląd posiadanych fiszek  
+Opis: Jako użytkownik chcę zobaczyć listę swoich fiszek, aby móc nimi zarządzać i przechodzić do nauki.  
+Kryteria akceptacji:
+
+- Po zalogowaniu użytkownik może przejść do widoku listy fiszek.
+- Lista pokazuje co najmniej front i kategorię fiszki oraz możliwość przejścia do edycji.
+- Użytkownik może usunąć fiszkę bezpośrednio z listy (z potwierdzeniem).
+- Widok obsługuje sytuację braku fiszek (stan pusty z komunikatem zachęcającym do utworzenia pierwszej karty lub skorzystania z generatora).
+
+
+</user_stories>
+
+4. Endpoint Description:
+<endpoint_description>
+
+
+### 2.2. Flashcards
+
+#### 2.2.1. List flashcards
+
+- Method: `GET`
+- Path: `/api/v1/flashcards`
+- Description: List flashcards for the authenticated user, optionally filtered by category and paginated.
+- Query parameters:
+  - `category_id` (optional, UUID) – filter by category.
+  - `limit` (optional, integer, default 50, max 200).
+  - `offset` (optional, integer, default 0).
+  - `order` (optional, string, default `created_desc`, accepted: `created_desc`, `created_asc`).
+
+Response 200 JSON:
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "category_id": "uuid",
+      "front": "What is photosynthesis?",
+      "back": "Process by which plants convert light energy into chemical energy.",
+      "source": "ai",
+      "created_at": "2025-11-15T10:00:00.000Z",
+      "updated_at": "2025-11-15T10:00:00.000Z"
+    }
+  ],
+  "limit": 50,
+  "offset": 0,
+  "total": null
+}
+```
+
+Success codes:
+
+- `200 OK`.
+
+Error codes:
+
+- `401 Unauthorized`.
+- `400 Bad Request` – invalid query params.
+- `500 Internal Server Error`.
+
+---
+
+#### 2.2.2. Create flashcard (manual)
+
+- Method: `POST`
+- Path: `/api/v1/flashcards`
+- Description: Create a new flashcard manually.
+- Request JSON:
+
+```json
+{
+  "category_id": "uuid",
+  "front": "Question text",
+  "back": "Answer text"
+}
+```
+
+Validation:
+
+- `category_id` required and must belong to the user.
+- `front` required, trimmed length 1–200 characters.
+- `back` required, trimmed length 1–500 characters.
+- `source` set to `"manual"` by backend.
+
+Response 201 JSON:
+
+```json
+{
+  "id": "uuid",
+  "category_id": "uuid",
+  "front": "Question text",
+  "back": "Answer text",
+  "source": "manual",
+  "created_at": "2025-11-15T10:00:00.000Z",
+  "updated_at": "2025-11-15T10:00:00.000Z"
+}
+```
+
+Success codes:
+
+- `201 Created`.
+
+Error codes:
+
+- `400 Bad Request` – invalid/missing `category_id`, `front`, or `back` (including length).
+- `401 Unauthorized`.
+- `404 Not Found` – `category_id` does not exist or not owned by the user.
+- `500 Internal Server Error`.
+
+---
+
+#### 2.2.3. Get single flashcard
+
+- Method: `GET`
+- Path: `/api/v1/flashcards/:id`
+- Description: Get a single flashcard owned by the user.
+- Path params:
+  - `id` – UUID of the flashcard.
+
+Response 200 JSON:
+
+```json
+{
+  "id": "uuid",
+  "category_id": "uuid",
+  "front": "Question text",
+  "back": "Answer text",
+  "source": "manual",
+  "created_at": "2025-11-15T10:00:00.000Z",
+  "updated_at": "2025-11-15T10:00:00.000Z"
+}
+```
+
+Success codes:
+
+- `200 OK`.
+
+Error codes:
+
+- `401 Unauthorized`.
+- `404 Not Found` – flashcard not found or not owned.
+- `500 Internal Server Error`.
+
+---
+
+#### 2.2.4. Update flashcard
+
+- Method: `PATCH`
+- Path: `/api/v1/flashcards/:id`
+- Description: Update flashcard content and/or category.
+- Path params:
+  - `id` – UUID of the flashcard.
+- Request JSON (partial update):
+
+```json
+{
+  "category_id": "uuid",
+  "front": "Updated question",
+  "back": "Updated answer"
+}
+```
+
+Validation:
+
+- If provided, `category_id` must belong to the user.
+- If provided, `front`/`back` must respect length and non-empty rules.
+- `source` is not editable from the API (remains `"manual"` or `"ai"`).
+
+Response 200 JSON:
+
+```json
+{
+  "id": "uuid",
+  "category_id": "uuid",
+  "front": "Updated question",
+  "back": "Updated answer",
+  "source": "manual",
+  "created_at": "2025-11-15T10:00:00.000Z",
+  "updated_at": "2025-11-15T11:00:00.000Z"
+}
+```
+
+Success codes:
+
+- `200 OK`.
+
+Error codes:
+
+- `400 Bad Request` – invalid payload.
+- `401 Unauthorized`.
+- `404 Not Found` – flashcard not found or not owned.
+- `500 Internal Server Error`.
+
+---
+
+#### 2.2.5. Delete flashcard
+
+- Method: `DELETE`
+- Path: `/api/v1/flashcards/:id`
+- Description: Permanently delete a flashcard.
+- Path params:
+  - `id` – UUID of the flashcard.
+- Request body: none.
+
+Response:
+
+- `204 No Content`.
+
+Error codes:
+
+- `401 Unauthorized`.
+- `404 Not Found`.
+- `500 Internal Server Error`.
+
+---
+
+
+
+
+</endpoint_description>
+
+5. Endpoint Implementation:
+<endpoint_implementation>
+@flashcards.ts @flashcardService.ts
+</endpoint_implementation>
+
+6. Type Definitions:
+<type_definitions>
+@types.ts
+</type_definitions>
+
+7. Tech Stack:
+<tech_stack>
+@tech-stack.md
+</tech_stack>
+
+Przed utworzeniem ostatecznego planu wdrożenia przeprowadź analizę i planowanie wewnątrz tagów <implementation_breakdown> w swoim bloku myślenia. Ta sekcja może być dość długa, ponieważ ważne jest, aby być dokładnym.
+
+W swoim podziale implementacji wykonaj następujące kroki:
+1. Dla każdej sekcji wejściowej (PRD, User Stories, Endpoint Description, Endpoint Implementation, Type Definitions, Tech Stack):
+  - Podsumuj kluczowe punkty
+ - Wymień wszelkie wymagania lub ograniczenia
+ - Zwróć uwagę na wszelkie potencjalne wyzwania lub ważne kwestie
+2. Wyodrębnienie i wypisanie kluczowych wymagań z PRD
+3. Wypisanie wszystkich potrzebnych głównych komponentów, wraz z krótkim opisem ich opisu, potrzebnych typów, obsługiwanych zdarzeń i warunków walidacji
+4. Stworzenie wysokopoziomowego diagramu drzewa komponentów
+5. Zidentyfikuj wymagane DTO i niestandardowe typy ViewModel dla każdego komponentu widoku. Szczegółowo wyjaśnij te nowe typy, dzieląc ich pola i powiązane typy.
+6. Zidentyfikuj potencjalne zmienne stanu i niestandardowe hooki, wyjaśniając ich cel i sposób ich użycia
+7. Wymień wymagane wywołania API i odpowiadające im akcje frontendowe
+8. Zmapuj każdej historii użytkownika do konkretnych szczegółów implementacji, komponentów lub funkcji
+9. Wymień interakcje użytkownika i ich oczekiwane wyniki
+10. Wymień warunki wymagane przez API i jak je weryfikować na poziomie komponentów
+11. Zidentyfikuj potencjalne scenariusze błędów i zasugeruj, jak sobie z nimi poradzić
+12. Wymień potencjalne wyzwania związane z wdrożeniem tego widoku i zasugeruj możliwe rozwiązania
+
+Po przeprowadzeniu analizy dostarcz plan wdrożenia w formacie Markdown z następującymi sekcjami:
+
+1. Przegląd: Krótkie podsumowanie widoku i jego celu.
+2. Routing widoku: Określenie ścieżki, na której widok powinien być dostępny.
+3. Struktura komponentów: Zarys głównych komponentów i ich hierarchii.
+4. Szczegóły komponentu: Dla każdego komponentu należy opisać:
+ - Opis komponentu, jego przeznaczenie i z czego się składa
+ - Główne elementy HTML i komponenty dzieci, które budują komponent
+ - Obsługiwane zdarzenia
+ - Warunki walidacji (szczegółowe warunki, zgodnie z API)
+ - Typy (DTO i ViewModel) wymagane przez komponent
+ - Propsy, które komponent przyjmuje od rodzica (interfejs komponentu)
+5. Typy: Szczegółowy opis typów wymaganych do implementacji widoku, w tym dokładny podział wszelkich nowych typów lub modeli widoku według pól i typów.
+6. Zarządzanie stanem: Szczegółowy opis sposobu zarządzania stanem w widoku, określenie, czy wymagany jest customowy hook.
+7. Integracja API: Wyjaśnienie sposobu integracji z dostarczonym punktem końcowym. Precyzyjnie wskazuje typy żądania i odpowiedzi.
+8. Interakcje użytkownika: Szczegółowy opis interakcji użytkownika i sposobu ich obsługi.
+9. Warunki i walidacja: Opisz jakie warunki są weryfikowane przez interfejs, których komponentów dotyczą i jak wpływają one na stan interfejsu
+10. Obsługa błędów: Opis sposobu obsługi potencjalnych błędów lub przypadków brzegowych.
+11. Kroki implementacji: Przewodnik krok po kroku dotyczący implementacji widoku.
+
+Upewnij się, że Twój plan jest zgodny z PRD, historyjkami użytkownika i uwzględnia dostarczony stack technologiczny.
+
+Ostateczne wyniki powinny być w języku polskim i zapisane w pliku o nazwie .ai/{view-name}-view-implementation-plan.md. Nie uwzględniaj żadnej analizy i planowania w końcowym wyniku.
+
+Oto przykład tego, jak powinien wyglądać plik wyjściowy (treść jest do zastąpienia):
+
+```markdown
+# Plan implementacji widoku [Nazwa widoku]
+
+## 1. Przegląd
+[Krótki opis widoku i jego celu]
+
+## 2. Routing widoku
+[Ścieżka, na której widok powinien być dostępny]
+
+## 3. Struktura komponentów
+[Zarys głównych komponentów i ich hierarchii]
+
+## 4. Szczegóły komponentów
+### [Nazwa komponentu 1]
+- Opis komponentu [opis]
+- Główne elementy: [opis]
+- Obsługiwane interakcje: [lista]
+- Obsługiwana walidacja: [lista, szczegółowa]
+- Typy: [lista]
+- Propsy: [lista]
+
+### [Nazwa komponentu 2]
+[...]
+
+## 5. Typy
+[Szczegółowy opis wymaganych typów]
+
+## 6. Zarządzanie stanem
+[Opis zarządzania stanem w widoku]
+
+## 7. Integracja API
+[Wyjaśnienie integracji z dostarczonym endpointem, wskazanie typów żądania i odpowiedzi]
+
+## 8. Interakcje użytkownika
+[Szczegółowy opis interakcji użytkownika]
+
+## 9. Warunki i walidacja
+[Szczegółowy opis warunków i ich walidacji]
+
+## 10. Obsługa błędów
+[Opis obsługi potencjalnych błędów]
+
+## 11. Kroki implementacji
+1. [Krok 1]
+2. [Krok 2]
+3. [...]
+```
+
+Rozpocznij analizę i planowanie już teraz. Twój ostateczny wynik powinien składać się wyłącznie z planu wdrożenia w języku polskim w formacie markdown, który zapiszesz w pliku .ai/flashcards-list-view-implementation-plan.md i nie powinien powielać ani powtarzać żadnej pracy wykonanej w podziale implementacji.

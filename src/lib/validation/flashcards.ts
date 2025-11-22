@@ -52,6 +52,99 @@ export type AcceptFlashcardProposalInput = z.infer<
 >;
 
 /**
+ * Schema walidacji body dla endpointu POST /api/v1/flashcards (manual create).
+ * Sprawdza UUID kategorii oraz długości front/back po trimie.
+ */
+export const createFlashcardBodySchema = z.object({
+  category_id: z.string().uuid(),
+  front: z
+    .string()
+    .transform((value) => value.trim())
+    .refine(
+      (value) => value.length >= 1 && value.length <= 200,
+      "front must be between 1 and 200 characters after trimming.",
+    ),
+  back: z
+    .string()
+    .transform((value) => value.trim())
+    .refine(
+      (value) => value.length >= 1 && value.length <= 500,
+      "back must be between 1 and 500 characters after trimming.",
+    ),
+});
+
+export type CreateFlashcardBodyInput = z.infer<
+  typeof createFlashcardBodySchema
+>;
+
+/**
+ * Schema walidacji parametrów ścieżki dla endpointu DELETE /api/v1/flashcards/:id.
+ */
+export const deleteFlashcardParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export type DeleteFlashcardParamsInput = z.infer<
+  typeof deleteFlashcardParamsSchema
+>;
+
+/**
+ * Schemy walidacji dla endpointu PATCH /api/v1/flashcards/:id.
+ */
+export const updateFlashcardParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+export type UpdateFlashcardParamsInput = z.infer<
+  typeof updateFlashcardParamsSchema
+>;
+
+export const updateFlashcardBodySchema = z
+  .object({
+    category_id: z.string().uuid().optional(),
+    front: z
+      .string()
+      .transform((value) => value.trim())
+      .refine(
+        (value) => value.length >= 1 && value.length <= 200,
+        "front must be between 1 and 200 characters after trimming.",
+      )
+      .optional(),
+    back: z
+      .string()
+      .transform((value) => value.trim())
+      .refine(
+        (value) => value.length >= 1 && value.length <= 500,
+        "back must be between 1 and 500 characters after trimming.",
+      )
+      .optional(),
+  })
+  .refine(
+    (value) =>
+      value.category_id !== undefined ||
+      value.front !== undefined ||
+      value.back !== undefined,
+    {
+      message: "At least one of category_id, front or back must be provided.",
+    },
+  );
+
+export type UpdateFlashcardBodyInput = z.infer<
+  typeof updateFlashcardBodySchema
+>;
+
+/**
+ * Schema walidacji query dla endpointu GET /api/v1/flashcards/random.
+ */
+export const randomFlashcardQuerySchema = z.object({
+  category_id: z.string().uuid().optional(),
+});
+
+export type RandomFlashcardQueryInput = z.infer<
+  typeof randomFlashcardQuerySchema
+>;
+
+/**
  * Schema walidacji parametrów query dla endpointu GET /api/v1/flashcards.
  *
  * Przyjmuje wartości z URLSearchParams (string | undefined),
